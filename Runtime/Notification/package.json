@@ -1,0 +1,26 @@
+{
+  "name": "com.pancake.notification",
+  "displayName": "Notification",
+  "description": "Schedule local notification for Unity",
+  "version": "1.0.2",
+  "unity": "2021.3",
+  "category": "pancake",
+  "author": {
+    "name": "yenmoc",
+    "email": "phongsoyenmoc.diep@gmail.com",
+    "url": "https://github.com/yenmoc"
+  },
+  "license": "MIT",
+  "keywords": [ "unity" ],
+  "dependencies": {
+    "com.unity.mobile.notifications": "2.1.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:pancake-llc/notification.git",
+    "directory": "Notification"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com/@pancake-llc"
+  }
+}

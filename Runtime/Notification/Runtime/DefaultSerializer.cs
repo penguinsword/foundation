@@ -1,10 +1,9 @@
-#if PANCAKE_NOTIFICATION
 using System;
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 
-namespace Pancake.Notification
+namespace Pancake.Notifications
 {
     /// <summary>
     /// Standard serializer used by the <see cref="GameNotificationsManager"/> if no others
@@ -43,7 +42,7 @@ namespace Pancake.Notification
                         // Write each item
                         foreach (PendingNotification notificationToSave in notifications)
                         {
-                            IGameNotification notification = notificationToSave.Notification;
+                            GameNotification notification = notificationToSave.Notification;
 
                             // ID
                             writer.Write(notification.Id.HasValue);
@@ -59,38 +58,30 @@ namespace Pancake.Notification
                             writer.Write(notification.Body ?? "");
 
                             // Subtitle
-                            writer.Write(notification.Subtitle ?? "");
+                            //writer.Write(notification.Subtitle ?? "");
 
-                            // Group
-                            writer.Write(notification.Group ?? "");
-                            
                             // Data
                             writer.Write(notification.Data ?? "");
 
                             // Badge
-                            writer.Write(notification.BadgeNumber.HasValue);
-                            if (notification.BadgeNumber.HasValue)
-                            {
-                                writer.Write(notification.BadgeNumber.Value);
-                            }
+                            writer.Write(notification.BadgeNumber);
 
                             // Time (must have a value)
-                            writer.Write(notification.DeliveryTime.Value.Ticks);
+                            writer.Write(notificationToSave.DeliveryTime.Ticks);
                         }
-                        
+
                         writer.Flush();
                     }
-                    
                 }
             }
-            catch (Exception e)
+            catch (IOException e)
             {
-                Debug.LogWarning(e.Message);
+                Debug.LogException(e);
             }
         }
 
         /// <inheritdoc />
-        public IList<IGameNotification> Deserialize(IGameNotificationsPlatform platform)
+        public IList<PendingNotification> Deserialize(GameNotificationsPlatform platform)
         {
             if (!File.Exists(filename))
             {
@@ -109,10 +100,10 @@ namespace Pancake.Notification
                         // Length
                         int numElements = reader.ReadInt32();
 
-                        var result = new List<IGameNotification>(numElements);
+                        var result = new List<PendingNotification>(numElements);
                         for (var i = 0; i < numElements; ++i)
                         {
-                            IGameNotification notification = platform.CreateNotification();
+                            GameNotification notification = platform.CreateNotification();
                             bool hasValue;
 
                             // ID
@@ -128,39 +119,28 @@ namespace Pancake.Notification
                             // Body
                             notification.Body = reader.ReadString();
 
-                            // Body
-                            notification.Subtitle = reader.ReadString();
-
-                            // Group
-                            notification.Group = reader.ReadString();
-
                             // Data, introduced in version 1
-                            if (version > 0) notification.Data = reader.ReadString();
-                            
+                            if (version > 0)
+                                notification.Data = reader.ReadString();
+
                             // Badge
-                            hasValue = reader.ReadBoolean();
-                            if (hasValue)
-                            {
-                                notification.BadgeNumber = reader.ReadInt32();
-                            }
+                            notification.BadgeNumber = reader.ReadInt32();
 
                             // Time
-                            notification.DeliveryTime = new DateTime(reader.ReadInt64(), DateTimeKind.Local);
+                            var deliveryTime = new DateTime(reader.ReadInt64(), DateTimeKind.Local);
 
-                            result.Add(notification);
+                            result.Add(new PendingNotification(notification, deliveryTime));
                         }
 
                         return result;
                     }
                 }
             }
-            catch (Exception e)
+            catch (IOException e)
             {
-                Debug.LogWarning(e.Message);
+                Debug.LogException(e);
                 return null;
             }
         }
     }
 }
-
-#endif

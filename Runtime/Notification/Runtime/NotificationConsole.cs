@@ -2,13 +2,10 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-#if UNITY_IOS
-using Unity.Notifications.iOS;
-#endif
 using UnityEngine;
 using UnityEngine.Events;
 
-namespace Pancake.Notification
+namespace Pancake.Notifications
 {
     public enum TypeNoti
     {
@@ -33,7 +30,6 @@ namespace Pancake.Notification
     public class NotificationStructureData
     {
         public TypeNoti type;
-        public string chanel;
         public int minute = 1;
         public bool autoSchedule;
         public NotificationData[] datas;
@@ -51,32 +47,22 @@ namespace Pancake.Notification
 
         [SerializeField] private NotificationStructureData[] structures =
         {
-            new NotificationStructureData() {type = TypeNoti.Repeat, chanel = "channel_repeat", minute = 1440, autoSchedule = true},
-            new NotificationStructureData() {type = TypeNoti.OnceTime, chanel = "channel_event", minute = 120, autoSchedule = false},
-            new NotificationStructureData() {type = TypeNoti.OnceTime, chanel = "channel_noti", minute = 120, autoSchedule = false},
+            new() {type = TypeNoti.Repeat, minute = 1440, autoSchedule = true}, new() {type = TypeNoti.OnceTime, minute = 120, autoSchedule = false},
+            new() {type = TypeNoti.OnceTime, minute = 120, autoSchedule = false},
         };
 
         public UnityEvent onUpdateDeliveryTime;
         public GameNotificationsManager Manager => _manager != null ? _manager : _manager = GetComponent<GameNotificationsManager>();
 
-        private GameNotificationChannel[] _channels;
         private GameNotificationsManager _manager;
+        private WaitForEndOfFrame _waitForEndOfFrame = new();
 
         private IEnumerator Start()
         {
             // Set up channels (mostly for Android)
             // You need to have at least one of these
 
-            _channels = new GameNotificationChannel[structures.Length];
-            for (int i = 0; i < structures.Length; i++)
-            {
-                var chanelCache = structures[i];
-                var chanelName = chanelCache.type == TypeNoti.OnceTime ? "Cygnus" : "Nova";
-                var chanelDescription = chanelCache.type == TypeNoti.OnceTime ? "Newsletter Announcement" : "Daily Newsletter";
-                _channels[i] = new GameNotificationChannel(structures[i].chanel, chanelName, chanelDescription);
-            }
-
-            yield return Manager.Initialize(_channels);
+            yield return Manager.Initialize();
             Manager.CancelAllNotifications();
             Manager.DismissAllNotifications();
         }
@@ -90,7 +76,7 @@ namespace Pancake.Notification
                 if (!structures[i].autoSchedule) continue;
 
                 var chanelCache = structures[i];
-                var data = chanelCache.datas.PickRandom();
+                var data = chanelCache.datas[UnityEngine.Random.Range(0, chanelCache.datas.Length)];
 
                 if (chanelCache.type == TypeNoti.OnceTime)
                 {
@@ -102,12 +88,7 @@ namespace Pancake.Notification
                         deliveryTime.Minute,
                         deliveryTime.Second,
                         DateTimeKind.Local);
-                    SendNotification(data.title,
-                        data.message,
-                        resultTime,
-                        channelId: _channels[i].Id,
-                        smallIcon: "icon_0",
-                        largeIcon: "icon_1");
+                    SendNotification(data.title, data.message, resultTime);
                 }
                 else
                 {
@@ -119,43 +100,9 @@ namespace Pancake.Notification
                         deliveryTime.Minute,
                         deliveryTime.Second,
                         DateTimeKind.Local);
-                    var timeSpanResult = new TimeSpan(0, 0, chanelCache.minute, 0);
-                    SendNotification(data.title,
-                        data.message,
-                        resultTime,
-                        channelId: _channels[i].Id,
-                        smallIcon: "icon_0",
-                        largeIcon: "icon_1",
-                        timeRepeatAt: timeSpanResult);
+                    SendNotification(data.title, data.message, resultTime);
                 }
             }
-        }
-
-        /// <summary>
-        /// using for custom of not auto schedule notification
-        /// </summary>
-        /// <param name="id">id of chanel</param>
-        /// <param name="customTimeSchedule"></param>
-        public int? UpdateDeliveryTimeBy(string id, int customTimeSchedule = -1)
-        {
-            int index = -1;
-
-            for (int i = 0; i < structures.Length; i++)
-            {
-                if (structures[i].chanel.Equals(id))
-                {
-                    index = i;
-                    break;
-                }
-            }
-
-            if (index == -1)
-            {
-                Debug.LogWarning($"id: {id} not exist! please check again!");
-                return null;
-            }
-
-            return UpdateDeliveryTimeBy(index, customTimeSchedule);
         }
 
         /// <summary>
@@ -163,14 +110,13 @@ namespace Pancake.Notification
         /// </summary>
         /// <param name="index">index of id chanel</param>
         /// <param name="customTimeSchedule"></param>
-        public int? UpdateDeliveryTimeBy(int index, int customTimeSchedule = -1)
+        public void UpdateDeliveryTimeBy(int index, int customTimeSchedule = -1)
         {
             var currentNow = DateTime.Now.ToLocalTime();
             var structureData = structures[index];
 
-            if (structureData.autoSchedule) return null;
-
-            var data = structureData.datas.PickRandom();
+            if (structureData.autoSchedule) return;
+            var data = structureData.datas[UnityEngine.Random.Range(0, structureData.datas.Length)];
 
             if (structureData.type == TypeNoti.OnceTime)
             {
@@ -182,12 +128,7 @@ namespace Pancake.Notification
                     deliveryTime.Minute,
                     deliveryTime.Second,
                     DateTimeKind.Local);
-               return SendNotification(data.title,
-                    data.message,
-                    resultTime,
-                    channelId: _channels[index].Id,
-                    smallIcon: "icon_0",
-                    largeIcon: "icon_1");
+                SendNotification(data.title, data.message, resultTime);
             }
             else
             {
@@ -199,14 +140,7 @@ namespace Pancake.Notification
                     deliveryTime.Minute,
                     deliveryTime.Second,
                     DateTimeKind.Local);
-                var timeSpanResult = new TimeSpan(0, 0, customTimeSchedule == -1 ? structureData.minute : customTimeSchedule, 0);
-                return SendNotification(data.title,
-                    data.message,
-                    resultTime,
-                    channelId: _channels[index].Id,
-                    smallIcon: "icon_0",
-                    largeIcon: "icon_1",
-                    timeRepeatAt: timeSpanResult);
+                SendNotification(data.title, data.message, resultTime);
             }
         }
 
@@ -232,12 +166,7 @@ namespace Pancake.Notification
                     deliveryTime.Minute,
                     deliveryTime.Second,
                     DateTimeKind.Local);
-               SendNotification(structureData.datas[indexData].title,
-                    structureData.datas[indexData].message,
-                    resultTime,
-                    channelId: _channels[index].Id,
-                    smallIcon: "icon_0",
-                    largeIcon: "icon_1");
+                SendNotification(structureData.datas[indexData].title, structureData.datas[indexData].message, resultTime);
             }
             else
             {
@@ -249,43 +178,8 @@ namespace Pancake.Notification
                     deliveryTime.Minute,
                     deliveryTime.Second,
                     DateTimeKind.Local);
-                var timeSpanResult = new TimeSpan(0, 0, customTimeSchedule == -1 ? structureData.minute : customTimeSchedule, 0);
-                SendNotification(structureData.datas[indexData].title,
-                    structureData.datas[indexData].message,
-                    resultTime,
-                    channelId: _channels[index].Id,
-                    smallIcon: "icon_0",
-                    largeIcon: "icon_1",
-                    timeRepeatAt: timeSpanResult);
+                SendNotification(structureData.datas[indexData].title, structureData.datas[indexData].message, resultTime);
             }
-        }
-
-        /// <summary>
-        /// using for custom of not auto schedule notification
-        /// </summary>
-        /// <param name="id">id of chanel</param>
-        /// <param name="indexData"></param>
-        /// <param name="customTimeSchedule"></param>
-        public void UpdateDeliveryTimeByIncremental(string id, int indexData, int customTimeSchedule = -1)
-        {
-            int index = -1;
-
-            for (int i = 0; i < structures.Length; i++)
-            {
-                if (structures[i].chanel.Equals(id))
-                {
-                    index = i;
-                    break;
-                }
-            }
-
-            if (index == -1)
-            {
-                Debug.LogWarning($"id: {id} not exist! please check again!");
-                return;
-            }
-
-            UpdateDeliveryTimeByIncremental(index, indexData, customTimeSchedule);
         }
 
         private void OnEnable()
@@ -321,52 +215,21 @@ namespace Pancake.Notification
         /// <param name="smallIcon">Notification small icon.</param>
         /// <param name="largeIcon">Notification large icon.</param>
         /// <param name="timeRepeatAt">time repeat fire notification</param>
-        public int? SendNotification(
-            string title,
-            string body,
-            DateTime deliveryTime,
-            int? badgeNumber = null,
-            bool reschedule = false,
-            string channelId = null,
-            string smallIcon = null,
-            string largeIcon = null,
-            TimeSpan? timeRepeatAt = null)
+        public void SendNotification(string title, string body, DateTime deliveryTime, int? badgeNumber = null, bool reschedule = false)
         {
-            IGameNotification notification = Manager.CreateNotification();
+            GameNotification notification = Manager.CreateNotification();
 
-            if (notification == null) return null;
+            if (notification == null) return;
 
             notification.Title = title;
             notification.Body = body;
-            notification.Group = channelId;
-#if UNITY_ANDROID
-            if (timeRepeatAt != null)
+            if (badgeNumber != null)
             {
-                if (notification is AndroidGameNotification notiAndroid)
-                {
-                    notiAndroid.RepeatInterval = timeRepeatAt;
-                }
+                notification.BadgeNumber = badgeNumber.Value;
             }
 
-#elif UNITY_IOS
-            if (timeRepeatAt != null)
-            {
-                if (notification is iOSGameNotification notificationIOS)
-                {
-                    notificationIOS.TimeIntervalTriggerFlag = true;
-                    notificationIOS.InternalNotification.Trigger = new iOSNotificationTimeIntervalTrigger {Repeats = true, TimeInterval = timeRepeatAt.Value,};
-                }
-            }
-#endif
-            notification.DeliveryTime = deliveryTime;
-            notification.SmallIcon = smallIcon;
-            notification.LargeIcon = largeIcon;
-
-            if (badgeNumber != null) notification.BadgeNumber = badgeNumber;
-
-            PendingNotification notificationToDisplay = Manager.ScheduleNotification(notification);
+            PendingNotification notificationToDisplay = Manager.ScheduleNotification(notification, deliveryTime);
             notificationToDisplay.Reschedule = reschedule;
-            return notification.Id;
         }
 
         /// <summary>
@@ -378,17 +241,7 @@ namespace Pancake.Notification
         {
             if (hasFocus)
             {
-                if (Manager.Initialized)
-                {
-                    Manager.CancelAllNotifications();
-                    Manager.DismissAllNotifications();
-                }
-
-                UpdatePendingNotificationsNextFrame().RunCoroutine();
-            }
-            else
-            {
-                JobScheduleNotification();
+                StartCoroutine(UpdatePendingNotificationsNextFrame());
             }
         }
 
@@ -421,14 +274,14 @@ namespace Pancake.Notification
         private void OnDelivered(PendingNotification deliveredNotification)
         {
             // Schedule this to run on the next frame (can't create UI elements from a Java callback)
-            ShowDeliveryNotificationCoroutine(deliveredNotification.Notification).RunCoroutine();
+            StartCoroutine(ShowDeliveryNotificationCoroutine(deliveredNotification.Notification));
         }
 
         private void OnExpired(PendingNotification obj) { }
 
-        private IEnumerator<float> ShowDeliveryNotificationCoroutine(IGameNotification deliveredNotification) { yield return Timing.WaitForOneFrame; }
+        private IEnumerator ShowDeliveryNotificationCoroutine(GameNotification deliveredNotification) { yield return null; }
 
-        private IEnumerator<float> UpdatePendingNotificationsNextFrame() { yield return Timing.WaitForOneFrame; }
+        private IEnumerator UpdatePendingNotificationsNextFrame() { yield return null; }
     }
 }
 #endif

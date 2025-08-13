@@ -1,7 +1,6 @@
-#if PANCAKE_NOTIFICATION
 using System.Collections.Generic;
 
-namespace Pancake.Notification
+namespace Pancake.Notifications
 {
     /// <summary>
     /// Responsible for the serialization and deserialization of pending notifications for a
@@ -20,8 +19,6 @@ namespace Pancake.Notification
         /// Retrieve a saved list of pending notifications.
         /// </summary>
         /// <returns>The deserialized collection of pending notifications, or null if the file did not exist.</returns>
-        IList<IGameNotification> Deserialize(IGameNotificationsPlatform platform);
+        IList<PendingNotification> Deserialize(GameNotificationsPlatform platform);
     }
 }
-
-#endif

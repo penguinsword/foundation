@@ -1,0 +1,26 @@
+{
+    "name": "Pancake.Notification",
+    "rootNamespace": "",
+    "references": [
+        "GUID:ac145e6b8c6034cdbadc8c6e26aedbcf",
+        "GUID:1e8e55397bd004beaba78a667566665f",
+        "GUID:d71139be5ab9e4bb49bc95f8093014e9"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "PANCAKE_NOTIFICATION"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.unity.mobile.notifications",
+            "expression": "",
+            "define": "PANCAKE_NOTIFICATION"
+        }
+    ],
+    "noEngineReferences": false
+}
